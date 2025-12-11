@@ -1,447 +1,482 @@
--- SimpleUI.lua
--- Place as a ModuleScript (e.g., in ReplicatedStorage or StarterPlayerScripts)
--- Lightweight UI library for Roblox (LocalScript-compatible)
+local Vortex = {}
+Vortex.__index = Vortex
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 
-local SimpleUI = {}
-SimpleUI.__index = SimpleUI
-
--- default theme
-SimpleUI.Theme = {
-    WindowBg = Color3.fromRGB(28, 28, 30),
-    Header = Color3.fromRGB(44, 44, 46),
-    Accent = Color3.fromRGB(86, 156, 214),
-    Text = Color3.fromRGB(230, 230, 230),
-    Subtext = Color3.fromRGB(170, 170, 170)
-}
-
--- helpers
-local function new(class, props)
-    local inst = Instance.new(class)
-    if props then
-        for k, v in pairs(props) do
-            inst[k] = v
-        end
-    end
-    return inst
+-- Utils
+local function tween(obj, props, duration)
+	local info = TweenInfo.new(duration or 0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+	TweenService:Create(obj, info, props):Play()
 end
 
-local function createLabel(text, size)
-    local lbl = new("TextLabel", {
-        Text = text or "",
-        Size = size or UDim2.new(1, 0, 0, 20),
-        BackgroundTransparency = 1,
-        TextColor3 = SimpleUI.Theme.Text,
-        Font = Enum.Font.Gotham,
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Left
-    })
-    return lbl
+local function ripple(btn, x, y)
+	local circle = Instance.new("ImageLabel")
+	circle.Name = "Ripple"
+	circle.Parent = btn
+	circle.BackgroundTransparency = 1
+	circle.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+	circle.ImageColor3 = Color3.fromRGB(255, 255, 255)
+	circle.ImageTransparency = 0.8
+	circle.ZIndex = btn.ZIndex + 1
+	circle.Position = UDim2.new(0, x, 0, y)
+	circle.Size = UDim2.new(0, 0, 0, 0)
+	circle.AnchorPoint = Vector2.new(0.5, 0.5)
+	
+	local size = math.max(btn.AbsoluteSize.X, btn.AbsoluteSize.Y) * 2
+	tween(circle, {Size = UDim2.new(0, size, 0, size), ImageTransparency = 1}, 0.5)
+	game:GetService("Debris"):AddItem(circle, 0.5)
 end
 
--- draggable window
-local function makeDraggable(frame, handle)
-    handle = handle or frame
-    local dragging = false
-    local dragInput, dragStart, startPos
-
-    local function update(input)
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-
-    handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    handle.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
-        end
-    end)
+-- Main Library
+function Vortex:CreateWindow(config)
+	config = config or {}
+	local windowName = config.Name or "Vortex UI"
+	local windowSize = config.Size or UDim2.new(0, 550, 0, 400)
+	
+	-- ScreenGui
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "VortexUI_" .. windowName
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.Parent = CoreGui
+	
+	-- Main Frame
+	local main = Instance.new("Frame")
+	main.Name = "Main"
+	main.Size = windowSize
+	main.Position = UDim2.new(0.5, 0, 0.5, 0)
+	main.AnchorPoint = Vector2.new(0.5, 0.5)
+	main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	main.BorderSizePixel = 0
+	main.ClipsDescendants = true
+	main.Parent = gui
+	
+	local mainCorner = Instance.new("UICorner")
+	mainCorner.CornerRadius = UDim.new(0, 10)
+	mainCorner.Parent = main
+	
+	-- Glow Shadow
+	local shadow = Instance.new("ImageLabel")
+	shadow.Name = "Shadow"
+	shadow.Size = UDim2.new(1, 40, 1, 40)
+	shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+	shadow.BackgroundTransparency = 1
+	shadow.Image = "rbxassetid://5554236805"
+	shadow.ImageColor3 = Color3.fromRGB(100, 60, 200)
+	shadow.ImageTransparency = 0.7
+	shadow.ZIndex = -1
+	shadow.Parent = main
+	
+	-- Top Bar
+	local topbar = Instance.new("Frame")
+	topbar.Name = "TopBar"
+	topbar.Size = UDim2.new(1, 0, 0, 45)
+	topbar.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+	topbar.BorderSizePixel = 0
+	topbar.Parent = main
+	
+	local topCorner = Instance.new("UICorner")
+	topCorner.CornerRadius = UDim.new(0, 10)
+	topCorner.Parent = topbar
+	
+	local topbarFix = Instance.new("Frame")
+	topbarFix.Size = UDim2.new(1, 0, 0, 10)
+	topbarFix.Position = UDim2.new(0, 0, 1, -10)
+	topbarFix.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+	topbarFix.BorderSizePixel = 0
+	topbarFix.Parent = topbar
+	
+	-- Title
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.new(1, -50, 1, 0)
+	title.Position = UDim2.new(0, 15, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = windowName
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextSize = 18
+	title.Font = Enum.Font.GothamBold
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = topbar
+	
+	-- Close Button
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Name = "CloseBtn"
+	closeBtn.Size = UDim2.new(0, 35, 0, 35)
+	closeBtn.Position = UDim2.new(1, -40, 0.5, 0)
+	closeBtn.AnchorPoint = Vector2.new(0, 0.5)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+	closeBtn.BorderSizePixel = 0
+	closeBtn.Text = "×"
+	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeBtn.TextSize = 24
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.Parent = topbar
+	
+	local closeBtnCorner = Instance.new("UICorner")
+	closeBtnCorner.CornerRadius = UDim.new(0, 8)
+	closeBtnCorner.Parent = closeBtn
+	
+	closeBtn.MouseButton1Click:Connect(function()
+		tween(main, {Size = UDim2.new(0, 0, 0, 0)}, 0.3)
+		wait(0.3)
+		gui:Destroy()
+	end)
+	
+	closeBtn.MouseEnter:Connect(function()
+		tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(200, 50, 50)}, 0.2)
+	end)
+	
+	closeBtn.MouseLeave:Connect(function()
+		tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(35, 35, 42)}, 0.2)
+	end)
+	
+	-- Dragging
+	local dragging, dragInput, dragStart, startPos
+	
+	topbar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = main.Position
+			
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+	
+	topbar.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			dragInput = input
+		end
+	end)
+	
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	
+	-- Tab System
+	local tabContainer = Instance.new("Frame")
+	tabContainer.Name = "TabContainer"
+	tabContainer.Size = UDim2.new(0, 140, 1, -55)
+	tabContainer.Position = UDim2.new(0, 10, 0, 50)
+	tabContainer.BackgroundTransparency = 1
+	tabContainer.Parent = main
+	
+	local tabList = Instance.new("UIListLayout")
+	tabList.SortOrder = Enum.SortOrder.LayoutOrder
+	tabList.Padding = UDim.new(0, 5)
+	tabList.Parent = tabContainer
+	
+	-- Content Container
+	local contentContainer = Instance.new("Frame")
+	contentContainer.Name = "ContentContainer"
+	contentContainer.Size = UDim2.new(1, -165, 1, -65)
+	contentContainer.Position = UDim2.new(0, 155, 0, 55)
+	contentContainer.BackgroundTransparency = 1
+	contentContainer.Parent = main
+	
+	-- Window Object
+	local Window = {
+		GUI = gui,
+		Main = main,
+		Tabs = {},
+		CurrentTab = nil
+	}
+	
+	function Window:CreateTab(tabName)
+		local Tab = {}
+		
+		-- Tab Button
+		local tabBtn = Instance.new("TextButton")
+		tabBtn.Name = tabName
+		tabBtn.Size = UDim2.new(1, 0, 0, 38)
+		tabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+		tabBtn.BorderSizePixel = 0
+		tabBtn.Text = tabName
+		tabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+		tabBtn.TextSize = 14
+		tabBtn.Font = Enum.Font.Gotham
+		tabBtn.ClipsDescendants = true
+		tabBtn.Parent = tabContainer
+		
+		local tabBtnCorner = Instance.new("UICorner")
+		tabBtnCorner.CornerRadius = UDim.new(0, 8)
+		tabBtnCorner.Parent = tabBtn
+		
+		-- Tab Content
+		local tabContent = Instance.new("ScrollingFrame")
+		tabContent.Name = tabName .. "_Content"
+		tabContent.Size = UDim2.new(1, 0, 1, 0)
+		tabContent.BackgroundTransparency = 1
+		tabContent.BorderSizePixel = 0
+		tabContent.ScrollBarThickness = 4
+		tabContent.ScrollBarImageColor3 = Color3.fromRGB(100, 60, 200)
+		tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+		tabContent.Visible = false
+		tabContent.Parent = contentContainer
+		
+		local contentList = Instance.new("UIListLayout")
+		contentList.SortOrder = Enum.SortOrder.LayoutOrder
+		contentList.Padding = UDim.new(0, 8)
+		contentList.Parent = tabContent
+		
+		contentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			tabContent.CanvasSize = UDim2.new(0, 0, 0, contentList.AbsoluteContentSize.Y + 10)
+		end)
+		
+		Tab.Content = tabContent
+		Tab.Button = tabBtn
+		
+		tabBtn.MouseButton1Click:Connect(function()
+			ripple(tabBtn, tabBtn.AbsoluteSize.X/2, tabBtn.AbsoluteSize.Y/2)
+			
+			for _, tab in pairs(Window.Tabs) do
+				tab.Content.Visible = false
+				tween(tab.Button, {BackgroundColor3 = Color3.fromRGB(30, 30, 38), TextColor3 = Color3.fromRGB(180, 180, 180)}, 0.2)
+			end
+			
+			tabContent.Visible = true
+			tween(tabBtn, {BackgroundColor3 = Color3.fromRGB(100, 60, 200), TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.2)
+			Window.CurrentTab = Tab
+		end)
+		
+		-- Auto-select first tab
+		if #Window.Tabs == 0 then
+			tabBtn.MouseButton1Click:Fire()
+		end
+		
+		table.insert(Window.Tabs, Tab)
+		
+		-- Tab Functions
+		function Tab:CreateButton(config)
+			config = config or {}
+			local btnText = config.Text or "Button"
+			local callback = config.Callback or function() end
+			
+			local btn = Instance.new("TextButton")
+			btn.Name = "Button"
+			btn.Size = UDim2.new(1, -10, 0, 40)
+			btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+			btn.BorderSizePixel = 0
+			btn.Text = btnText
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.TextSize = 14
+			btn.Font = Enum.Font.Gotham
+			btn.ClipsDescendants = true
+			btn.Parent = tabContent
+			
+			local btnCorner = Instance.new("UICorner")
+			btnCorner.CornerRadius = UDim.new(0, 8)
+			btnCorner.Parent = btn
+			
+			btn.MouseButton1Click:Connect(function()
+				ripple(btn, btn.AbsoluteSize.X/2, btn.AbsoluteSize.Y/2)
+				callback()
+			end)
+			
+			btn.MouseEnter:Connect(function()
+				tween(btn, {BackgroundColor3 = Color3.fromRGB(45, 45, 55)}, 0.2)
+			end)
+			
+			btn.MouseLeave:Connect(function()
+				tween(btn, {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}, 0.2)
+			end)
+		end
+		
+		function Tab:CreateToggle(config)
+			config = config or {}
+			local toggleText = config.Text or "Toggle"
+			local defaultState = config.Default or false
+			local callback = config.Callback or function() end
+			
+			local toggleFrame = Instance.new("Frame")
+			toggleFrame.Name = "Toggle"
+			toggleFrame.Size = UDim2.new(1, -10, 0, 40)
+			toggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+			toggleFrame.BorderSizePixel = 0
+			toggleFrame.Parent = tabContent
+			
+			local toggleCorner = Instance.new("UICorner")
+			toggleCorner.CornerRadius = UDim.new(0, 8)
+			toggleCorner.Parent = toggleFrame
+			
+			local label = Instance.new("TextLabel")
+			label.Size = UDim2.new(1, -50, 1, 0)
+			label.Position = UDim2.new(0, 10, 0, 0)
+			label.BackgroundTransparency = 1
+			label.Text = toggleText
+			label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			label.TextSize = 14
+			label.Font = Enum.Font.Gotham
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.Parent = toggleFrame
+			
+			local toggleBtn = Instance.new("TextButton")
+			toggleBtn.Size = UDim2.new(0, 40, 0, 20)
+			toggleBtn.Position = UDim2.new(1, -45, 0.5, 0)
+			toggleBtn.AnchorPoint = Vector2.new(0, 0.5)
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			toggleBtn.BorderSizePixel = 0
+			toggleBtn.Text = ""
+			toggleBtn.Parent = toggleFrame
+			
+			local toggleBtnCorner = Instance.new("UICorner")
+			toggleBtnCorner.CornerRadius = UDim.new(1, 0)
+			toggleBtnCorner.Parent = toggleBtn
+			
+			local circle = Instance.new("Frame")
+			circle.Size = UDim2.new(0, 16, 0, 16)
+			circle.Position = UDim2.new(0, 2, 0.5, 0)
+			circle.AnchorPoint = Vector2.new(0, 0.5)
+			circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			circle.BorderSizePixel = 0
+			circle.Parent = toggleBtn
+			
+			local circleCorner = Instance.new("UICorner")
+			circleCorner.CornerRadius = UDim.new(1, 0)
+			circleCorner.Parent = circle
+			
+			local toggled = defaultState
+			
+			local function updateToggle()
+				if toggled then
+					tween(toggleBtn, {BackgroundColor3 = Color3.fromRGB(100, 60, 200)}, 0.2)
+					tween(circle, {Position = UDim2.new(1, -2, 0.5, 0)}, 0.2)
+				else
+					tween(toggleBtn, {BackgroundColor3 = Color3.fromRGB(50, 50, 60)}, 0.2)
+					tween(circle, {Position = UDim2.new(0, 2, 0.5, 0)}, 0.2)
+				end
+				callback(toggled)
+			end
+			
+			updateToggle()
+			
+			toggleBtn.MouseButton1Click:Connect(function()
+				toggled = not toggled
+				updateToggle()
+			end)
+		end
+		
+		function Tab:CreateSlider(config)
+			config = config or {}
+			local sliderText = config.Text or "Slider"
+			local min = config.Min or 0
+			local max = config.Max or 100
+			local default = config.Default or 50
+			local callback = config.Callback or function() end
+			
+			local sliderFrame = Instance.new("Frame")
+			sliderFrame.Name = "Slider"
+			sliderFrame.Size = UDim2.new(1, -10, 0, 50)
+			sliderFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+			sliderFrame.BorderSizePixel = 0
+			sliderFrame.Parent = tabContent
+			
+			local sliderCorner = Instance.new("UICorner")
+			sliderCorner.CornerRadius = UDim.new(0, 8)
+			sliderCorner.Parent = sliderFrame
+			
+			local label = Instance.new("TextLabel")
+			label.Size = UDim2.new(0.7, 0, 0, 20)
+			label.Position = UDim2.new(0, 10, 0, 5)
+			label.BackgroundTransparency = 1
+			label.Text = sliderText
+			label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			label.TextSize = 14
+			label.Font = Enum.Font.Gotham
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.Parent = sliderFrame
+			
+			local valueLabel = Instance.new("TextLabel")
+			valueLabel.Size = UDim2.new(0.3, -10, 0, 20)
+			valueLabel.Position = UDim2.new(0.7, 0, 0, 5)
+			valueLabel.BackgroundTransparency = 1
+			valueLabel.Text = tostring(default)
+			valueLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+			valueLabel.TextSize = 14
+			valueLabel.Font = Enum.Font.Gotham
+			valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+			valueLabel.Parent = sliderFrame
+			
+			local sliderBack = Instance.new("Frame")
+			sliderBack.Size = UDim2.new(1, -20, 0, 6)
+			sliderBack.Position = UDim2.new(0, 10, 1, -15)
+			sliderBack.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			sliderBack.BorderSizePixel = 0
+			sliderBack.Parent = sliderFrame
+			
+			local sliderBackCorner = Instance.new("UICorner")
+			sliderBackCorner.CornerRadius = UDim.new(1, 0)
+			sliderBackCorner.Parent = sliderBack
+			
+			local sliderFill = Instance.new("Frame")
+			sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+			sliderFill.BackgroundColor3 = Color3.fromRGB(100, 60, 200)
+			sliderFill.BorderSizePixel = 0
+			sliderFill.Parent = sliderBack
+			
+			local sliderFillCorner = Instance.new("UICorner")
+			sliderFillCorner.CornerRadius = UDim.new(1, 0)
+			sliderFillCorner.Parent = sliderFill
+			
+			local draggingSlider = false
+			
+			sliderBack.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					draggingSlider = true
+				end
+			end)
+			
+			UserInputService.InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					draggingSlider = false
+				end
+			end)
+			
+			UserInputService.InputChanged:Connect(function(input)
+				if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+					local pos = math.clamp((input.Position.X - sliderBack.AbsolutePosition.X) / sliderBack.AbsoluteSize.X, 0, 1)
+					local value = math.floor(min + (max - min) * pos)
+					
+					sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+					valueLabel.Text = tostring(value)
+					callback(value)
+				end
+			end)
+		end
+		
+		function Tab:CreateLabel(text)
+			local label = Instance.new("TextLabel")
+			label.Name = "Label"
+			label.Size = UDim2.new(1, -10, 0, 30)
+			label.BackgroundTransparency = 1
+			label.Text = text or "Label"
+			label.TextColor3 = Color3.fromRGB(200, 200, 200)
+			label.TextSize = 14
+			label.Font = Enum.Font.Gotham
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.TextWrapped = true
+			label.Parent = tabContent
+		end
+		
+		return Tab
+	end
+	
+	-- Spawn animation
+	main.Size = UDim2.new(0, 0, 0, 0)
+	tween(main, {Size = windowSize}, 0.4)
+	
+	return Window
 end
 
--- animate utility
-local function tween(obj, props, info)
-    local info = info or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local tw = TweenService:Create(obj, info, props)
-    tw:Play()
-    return tw
-end
-
--- create main window
-function SimpleUI:CreateWindow(title)
-    local win = {}
-    win.Tabs = {}
-
-    -- ScreenGui
-    local screenGui = new("ScreenGui", {Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"), Name = title and (title .. "UI") or "SimpleUI"})
-    screenGui.ResetOnSpawn = false
-
-    -- Main frame
-    local main = new("Frame", {
-        Parent = screenGui,
-        Name = "Window",
-        Size = UDim2.new(0, 600, 0, 400),
-        Position = UDim2.new(0.5, -300, 0.5, -200),
-        BackgroundColor3 = SimpleUI.Theme.WindowBg,
-        BorderSizePixel = 0
-    })
-
-    -- shadow (optional)
-    local uiCorner = new("UICorner", {Parent = main, CornerRadius = UDim.new(0, 8)})
-
-    -- header
-    local header = new("Frame", {
-        Parent = main,
-        Name = "Header",
-        Size = UDim2.new(1, 0, 0, 34),
-        BackgroundColor3 = SimpleUI.Theme.Header,
-        BorderSizePixel = 0
-    })
-    new("UICorner", {Parent = header, CornerRadius = UDim.new(0, 8)})
-
-    local titleLabel = new("TextLabel", {
-        Parent = header,
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, -40, 1, 0),
-        Position = UDim2.new(0, 12, 0, 0),
-        Text = title or "SimpleUI",
-        TextColor3 = SimpleUI.Theme.Text,
-        Font = Enum.Font.GothamBold,
-        TextSize = 16,
-        TextXAlignment = Enum.TextXAlignment.Left
-    })
-
-    -- close button
-    local closeBtn = new("TextButton", {
-        Parent = header,
-        Size = UDim2.new(0, 28, 0, 28),
-        Position = UDim2.new(1, -36, 0, 3),
-        BackgroundTransparency = 1,
-        Text = "✕",
-        TextColor3 = SimpleUI.Theme.Subtext,
-        Font = Enum.Font.Gotham,
-        TextSize = 18
-    })
-
-    closeBtn.MouseButton1Click:Connect(function()
-        tween(main, {Size = UDim2.new(0, 0, 0, 0)}, TweenInfo.new(0.18))
-        wait(0.18)
-        screenGui:Destroy()
-    end)
-
-    -- left tab list
-    local tabList = new("Frame", {
-        Parent = main,
-        Name = "TabList",
-        Size = UDim2.new(0, 140, 1, -34),
-        Position = UDim2.new(0, 0, 0, 34),
-        BackgroundTransparency = 1
-    })
-
-    local tabListLayout = new("UIListLayout", {Parent = tabList, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6)})
-    tabListLayout.Padding = UDim.new(0, 6)
-
-    -- content area
-    local content = new("Frame", {
-        Parent = main,
-        Name = "Content",
-        Size = UDim2.new(1, -140, 1, -34),
-        Position = UDim2.new(0, 140, 0, 34),
-        BackgroundTransparency = 1
-    })
-
-    local contentLayout = new("UIListLayout", {Parent = content, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8)})
-    contentLayout.Padding = UDim.new(0, 8)
-
-    -- make draggable by header
-    makeDraggable(main, header)
-
-    -- window object API
-    function win:AddTab(name)
-        assert(type(name) == "string", "Tab name must be a string")
-
-        local tab = {Sections = {}}
-
-        -- tab button
-        local btn = new("TextButton", {
-            Parent = tabList,
-            Size = UDim2.new(1, -8, 0, 28),
-            BackgroundColor3 = SimpleUI.Theme.Header,
-            Text = name,
-            TextColor3 = SimpleUI.Theme.Text,
-            Font = Enum.Font.GothamBold,
-            TextSize = 14,
-            BorderSizePixel = 0
-        })
-        new("UICorner", {Parent = btn, CornerRadius = UDim.new(0, 6)})
-
-        -- tab page
-        local page = new("Frame", {
-            Parent = content,
-            Size = UDim2.new(1, -12, 0, 0), -- height auto via layout
-            BackgroundTransparency = 1
-        })
-        local pageLayout = new("UIListLayout", {Parent = page, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6)})
-        pageLayout.Padding = UDim.new(0, 6)
-
-        -- select logic
-        btn.MouseButton1Click:Connect(function()
-            -- hide others
-            for _, t in pairs(win.Tabs) do
-                t.Button.BackgroundColor3 = SimpleUI.Theme.Header
-                t.Page.Visible = false
-            end
-            btn.BackgroundColor3 = SimpleUI.Theme.WindowBg
-            page.Visible = true
-        end)
-
-        -- default select if first
-        if #win.Tabs == 0 then
-            btn.BackgroundColor3 = SimpleUI.Theme.WindowBg
-            page.Visible = true
-        else
-            page.Visible = false
-        end
-
-        tab.Button = btn
-        tab.Page = page
-
-        function tab:AddSection(title)
-            local section = {Items = {}}
-
-            local secFrame = new("Frame", {
-                Parent = page,
-                Size = UDim2.new(1, 0, 0, 0),
-                BackgroundColor3 = SimpleUI.Theme.Header,
-                BorderSizePixel = 0
-            })
-            new("UICorner", {Parent = secFrame, CornerRadius = UDim.new(0, 6)})
-            secFrame.Padding = UDim.new(0, 6)
-            local secLayout = new("UIListLayout", {Parent = secFrame, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6)})
-            secLayout.Padding = UDim.new(0, 6)
-
-            local header = new("TextLabel", {
-                Parent = secFrame,
-                Text = title or "Section",
-                Size = UDim2.new(1, 0, 0, 28),
-                BackgroundTransparency = 1,
-                TextColor3 = SimpleUI.Theme.Text,
-                Font = Enum.Font.GothamBold,
-                TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Left
-            })
-
-            function section:AddButton(text, callback)
-                local btn = new("TextButton", {
-                    Parent = secFrame,
-                    Size = UDim2.new(1, -12, 0, 30),
-                    BackgroundTransparency = 0,
-                    BackgroundColor3 = SimpleUI.Theme.WindowBg,
-                    Text = text or "Button",
-                    TextColor3 = SimpleUI.Theme.Text,
-                    Font = Enum.Font.Gotham,
-                    TextSize = 14,
-                    BorderSizePixel = 0
-                })
-                new("UICorner", {Parent = btn, CornerRadius = UDim.new(0, 6)})
-
-                btn.MouseButton1Click:Connect(function()
-                    if callback then
-                        pcall(callback)
-                    end
-                end)
-
-                table.insert(section.Items, btn)
-                return btn
-            end
-
-            function section:AddToggle(text, default, callback)
-                local container = new("Frame", {Parent = secFrame, Size = UDim2.new(1, -12, 0, 28), BackgroundTransparency = 1})
-                local lbl = createLabel(text, UDim2.new(1, -42, 0, 28))
-                lbl.Parent = container
-                lbl.Position = UDim2.new(0, 6, 0, 0)
-                lbl.TextColor3 = SimpleUI.Theme.Text
-
-                local toggle = new("TextButton", {Parent = container, Size = UDim2.new(0, 32, 0, 20), Position = UDim2.new(1, -38, 0, 4), BackgroundColor3 = SimpleUI.Theme.WindowBg, Text = "", BorderSizePixel = 0})
-                new("UICorner", {Parent = toggle, CornerRadius = UDim.new(0, 6)})
-
-                local indicator = new("Frame", {Parent = toggle, Size = UDim2.new(0, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0), BackgroundColor3 = SimpleUI.Theme.Accent, BorderSizePixel = 0})
-
-                local state = default and true or false
-                local function update()
-                    if state then
-                        tween(indicator, {Size = UDim2.new(1, 0, 1, 0)})
-                    else
-                        tween(indicator, {Size = UDim2.new(0, 0, 1, 0)})
-                    end
-                end
-                update()
-
-                toggle.MouseButton1Click:Connect(function()
-                    state = not state
-                    update()
-                    if callback then pcall(callback, state) end
-                end)
-
-                table.insert(section.Items, toggle)
-                return toggle
-            end
-
-            function section:AddSlider(min, max, default, step, callback)
-                min = min or 0; max = max or 100; default = default or min; step = step or 1
-                local container = new("Frame", {Parent = secFrame, Size = UDim2.new(1, -12, 0, 40), BackgroundTransparency = 1})
-                local lbl = createLabel(tostring(default), UDim2.new(1, -12, 0, 16))
-                lbl.Parent = container
-                lbl.Position = UDim2.new(0, 6, 0, 0)
-                lbl.TextColor3 = SimpleUI.Theme.Text
-
-                local sliderBg = new("Frame", {Parent = container, Size = UDim2.new(1, -12, 0, 12), Position = UDim2.new(0, 6, 0, 22), BackgroundColor3 = SimpleUI.Theme.WindowBg, BorderSizePixel = 0})
-                local sliderFill = new("Frame", {Parent = sliderBg, Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = SimpleUI.Theme.Accent, BorderSizePixel = 0})
-                new("UICorner", {Parent = sliderBg, CornerRadius = UDim.new(0, 6)})
-                new("UICorner", {Parent = sliderFill, CornerRadius = UDim.new(0, 6)})
-
-                local dragging = false
-                local function setFromX(x)
-                    local abs = x - sliderBg.AbsolutePosition.X
-                    local ratio = math.clamp(abs / sliderBg.AbsoluteSize.X, 0, 1)
-                    local value = min + (max - min) * ratio
-                    value = math.floor(value / step + 0.5) * step
-                    sliderFill.Size = UDim2.new(ratio, 0, 1, 0)
-                    lbl.Text = tostring(value)
-                    if callback then pcall(callback, value) end
-                end
-
-                sliderBg.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = true
-                        setFromX(input.Position.X)
-                    end
-                end)
-                sliderBg.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = false
-                    end
-                end)
-                UserInputService.InputChanged:Connect(function(input)
-                    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                        setFromX(input.Position.X)
-                    end
-                end)
-
-                -- set default
-                do
-                    local ratio = (default - min) / (max - min)
-                    if ratio ~= ratio then ratio = 0 end
-                    sliderFill.Size = UDim2.new(ratio, 0, 1, 0)
-                    lbl.Text = tostring(default)
-                end
-
-                table.insert(section.Items, sliderBg)
-                return sliderBg
-            end
-
-            function section:AddDropdown(options, callback)
-                options = options or {}
-                local container = new("Frame", {Parent = secFrame, Size = UDim2.new(1, -12, 0, 30), BackgroundTransparency = 1})
-                local mainBtn = new("TextButton", {Parent = container, Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = SimpleUI.Theme.WindowBg, Text = tostring(options[1] or "Select"), TextColor3 = SimpleUI.Theme.Text, BorderSizePixel = 0})
-                new("UICorner", {Parent = mainBtn, CornerRadius = UDim.new(0, 6)})
-
-                local list = new("Frame", {Parent = container, Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 1, 6), BackgroundColor3 = SimpleUI.Theme.Header, Visible = false})
-                new("UICorner", {Parent = list, CornerRadius = UDim.new(0, 6)})
-                local listLayout = new("UIListLayout", {Parent = list, SortOrder = Enum.SortOrder.LayoutOrder})
-
-                for _, opt in ipairs(options) do
-                    local it = new("TextButton", {Parent = list, Size = UDim2.new(1, -8, 0, 28), BackgroundTransparency = 1, BorderSizePixel = 0, Text = tostring(opt), TextColor3 = SimpleUI.Theme.Text, Font = Enum.Font.Gotham})
-                    it.Position = UDim2.new(0, 4, 0, 0)
-                    it.MouseButton1Click:Connect(function()
-                        mainBtn.Text = tostring(opt)
-                        list.Visible = false
-                        if callback then pcall(callback, opt) end
-                    end)
-                end
-
-                mainBtn.MouseButton1Click:Connect(function()
-                    list.Visible = not list.Visible
-                    if list.Visible then
-                        local count = #list:GetChildren()
-                        -- we won't count Layout objects; simply set size via computing children
-                        local total = 0
-                        for _, v in ipairs(list:GetChildren()) do
-                            if v:IsA("TextButton") then total = total + v.Size.Y.Offset end
-                        end
-                        list.Size = UDim2.new(1, 0, 0, total)
-                    else
-                        list.Size = UDim2.new(1, 0, 0, 0)
-                    end
-                end)
-
-                table.insert(section.Items, container)
-                return container
-            end
-
-            function section:AddTextbox(placeholder, callback)
-                local box = new("TextBox", {Parent = secFrame, Size = UDim2.new(1, -12, 0, 30), BackgroundColor3 = SimpleUI.Theme.WindowBg, Text = "", PlaceholderText = placeholder or "", TextColor3 = SimpleUI.Theme.Text, Font = Enum.Font.Gotham, TextSize = 14, ClearTextOnFocus = false, BorderSizePixel = 0})
-                new("UICorner", {Parent = box, CornerRadius = UDim.new(0, 6)})
-
-                box.FocusLost:Connect(function(enter)
-                    if enter then
-                        if callback then pcall(callback, box.Text) end
-                    end
-                end)
-
-                table.insert(section.Items, box)
-                return box
-            end
-
-            table.insert(tab.Sections, section)
-            return section
-        end
-
-        table.insert(win.Tabs, tab)
-        return tab
-    end
-
-    function win:Notify(text, duration)
-        duration = duration or 3
-        local notif = new("Frame", {Parent = screenGui, Size = UDim2.new(0, 300, 0, 60), Position = UDim2.new(1, -320, 1, -80), BackgroundColor3 = SimpleUI.Theme.Header, BorderSizePixel = 0})
-        new("UICorner", {Parent = notif, CornerRadius = UDim.new(0, 8)})
-        local lbl = new("TextLabel", {Parent = notif, Size = UDim2.new(1, -20, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = text or "", TextColor3 = SimpleUI.Theme.Text, Font = Enum.Font.Gotham, TextSize = 14, TextWrapped = true})
-        tween(notif, {Position = UDim2.new(1, -320, 1, -100)})
-        delay(duration, function()
-            tween(notif, {Position = UDim2.new(1, -320, 1, 20)})
-            wait(0.3)
-            notif:Destroy()
-        end)
-    end
-
-    win.ScreenGui = screenGui
-    win.Main = main
-    win.Header = header
-    win.TabList = tabList
-    win.Content = content
-
-    return win
-end
-
-return SimpleUI
+return Vortex
