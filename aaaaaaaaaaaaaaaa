@@ -4,6 +4,7 @@ Vortex.__index = Vortex
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 
 -- Utils
 local function tween(obj, props, duration)
@@ -18,22 +19,34 @@ local function ripple(btn, x, y)
 	circle.BackgroundTransparency = 1
 	circle.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
 	circle.ImageColor3 = Color3.fromRGB(255, 255, 255)
-	circle.ImageTransparency = 0.8
+	circle.ImageTransparency = 0.5
 	circle.ZIndex = btn.ZIndex + 1
 	circle.Position = UDim2.new(0, x, 0, y)
 	circle.Size = UDim2.new(0, 0, 0, 0)
 	circle.AnchorPoint = Vector2.new(0.5, 0.5)
 	
-	local size = math.max(btn.AbsoluteSize.X, btn.AbsoluteSize.Y) * 2
-	tween(circle, {Size = UDim2.new(0, size, 0, size), ImageTransparency = 1}, 0.5)
-	game:GetService("Debris"):AddItem(circle, 0.5)
+	local size = math.max(btn.AbsoluteSize.X, btn.AbsoluteSize.Y) * 2.5
+	tween(circle, {Size = UDim2.new(0, size, 0, size), ImageTransparency = 1}, 0.6)
+	game:GetService("Debris"):AddItem(circle, 0.6)
+end
+
+local function createGradient(parent, rotation)
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 80, 255)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(180, 100, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 180, 255))
+	}
+	gradient.Rotation = rotation or 45
+	gradient.Parent = parent
+	return gradient
 end
 
 -- Main Library
 function Vortex:CreateWindow(config)
 	config = config or {}
 	local windowName = config.Name or "Vortex UI"
-	local windowSize = config.Size or UDim2.new(0, 550, 0, 400)
+	local windowSize = config.Size or UDim2.new(0, 580, 0, 420)
 	
 	-- ScreenGui
 	local gui = Instance.new("ScreenGui")
@@ -48,72 +61,220 @@ function Vortex:CreateWindow(config)
 	main.Size = windowSize
 	main.Position = UDim2.new(0.5, 0, 0.5, 0)
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
-	main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 	main.BorderSizePixel = 0
-	main.ClipsDescendants = true
+	main.ClipsDescendants = false
 	main.Parent = gui
 	
 	local mainCorner = Instance.new("UICorner")
-	mainCorner.CornerRadius = UDim.new(0, 10)
+	mainCorner.CornerRadius = UDim.new(0, 12)
 	mainCorner.Parent = main
 	
-	-- Glow Shadow
-	local shadow = Instance.new("ImageLabel")
-	shadow.Name = "Shadow"
-	shadow.Size = UDim2.new(1, 40, 1, 40)
-	shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-	shadow.BackgroundTransparency = 1
-	shadow.Image = "rbxassetid://5554236805"
-	shadow.ImageColor3 = Color3.fromRGB(100, 60, 200)
-	shadow.ImageTransparency = 0.7
-	shadow.ZIndex = -1
-	shadow.Parent = main
+	-- Outer Glow
+	local outerGlow = Instance.new("ImageLabel")
+	outerGlow.Name = "OuterGlow"
+	outerGlow.Size = UDim2.new(1, 60, 1, 60)
+	outerGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
+	outerGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+	outerGlow.BackgroundTransparency = 1
+	outerGlow.Image = "rbxassetid://5554236805"
+	outerGlow.ImageColor3 = Color3.fromRGB(120, 80, 255)
+	outerGlow.ImageTransparency = 0.5
+	outerGlow.ZIndex = -2
+	outerGlow.Parent = main
+	
+	-- Animated gradient glow
+	spawn(function()
+		local hue = 0
+		while outerGlow and outerGlow.Parent do
+			hue = (hue + 0.5) % 360
+			outerGlow.ImageColor3 = Color3.fromHSV(hue / 360, 0.8, 1)
+			RunService.RenderStepped:Wait()
+		end
+	end)
+	
+	-- Border accent
+	local border = Instance.new("UIStroke")
+	border.Color = Color3.fromRGB(100, 80, 200)
+	border.Thickness = 2
+	border.Transparency = 0.3
+	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	border.Parent = main
+	
+	-- Animated border
+	spawn(function()
+		local hue = 0
+		while border and border.Parent do
+			hue = (hue + 0.5) % 360
+			border.Color = Color3.fromHSV(hue / 360, 0.7, 0.9)
+			RunService.RenderStepped:Wait()
+		end
+	end)
+	
+	-- Background particles
+	local particleContainer = Instance.new("Frame")
+	particleContainer.Name = "Particles"
+	particleContainer.Size = UDim2.new(1, 0, 1, 0)
+	particleContainer.BackgroundTransparency = 1
+	particleContainer.ClipsDescendants = true
+	particleContainer.ZIndex = 1
+	particleContainer.Parent = main
+	
+	for i = 1, 15 do
+		local particle = Instance.new("Frame")
+		particle.Size = UDim2.new(0, math.random(2, 4), 0, math.random(2, 4))
+		particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
+		particle.BackgroundColor3 = Color3.fromRGB(150, 120, 255)
+		particle.BackgroundTransparency = math.random(50, 80) / 100
+		particle.BorderSizePixel = 0
+		particle.Parent = particleContainer
+		
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = particle
+		
+		spawn(function()
+			while particle and particle.Parent do
+				local duration = math.random(3, 6)
+				local newPos = UDim2.new(math.random(), 0, math.random(), 0)
+				tween(particle, {Position = newPos, BackgroundTransparency = math.random(60, 90) / 100}, duration)
+				wait(duration)
+			end
+		end)
+	end
 	
 	-- Top Bar
 	local topbar = Instance.new("Frame")
 	topbar.Name = "TopBar"
-	topbar.Size = UDim2.new(1, 0, 0, 45)
-	topbar.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+	topbar.Size = UDim2.new(1, 0, 0, 50)
+	topbar.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 	topbar.BorderSizePixel = 0
+	topbar.ZIndex = 2
 	topbar.Parent = main
 	
 	local topCorner = Instance.new("UICorner")
-	topCorner.CornerRadius = UDim.new(0, 10)
+	topCorner.CornerRadius = UDim.new(0, 12)
 	topCorner.Parent = topbar
 	
 	local topbarFix = Instance.new("Frame")
-	topbarFix.Size = UDim2.new(1, 0, 0, 10)
-	topbarFix.Position = UDim2.new(0, 0, 1, -10)
-	topbarFix.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+	topbarFix.Size = UDim2.new(1, 0, 0, 12)
+	topbarFix.Position = UDim2.new(0, 0, 1, -12)
+	topbarFix.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 	topbarFix.BorderSizePixel = 0
+	topbarFix.ZIndex = 2
 	topbarFix.Parent = topbar
+	
+	-- Topbar gradient accent
+	local topbarAccent = Instance.new("Frame")
+	topbarAccent.Size = UDim2.new(1, 0, 0, 2)
+	topbarAccent.Position = UDim2.new(0, 0, 1, -2)
+	topbarAccent.BorderSizePixel = 0
+	topbarAccent.ZIndex = 3
+	topbarAccent.Parent = topbar
+	createGradient(topbarAccent, 90)
+	
+	-- Logo/Icon
+	local logo = Instance.new("Frame")
+	logo.Size = UDim2.new(0, 32, 0, 32)
+	logo.Position = UDim2.new(0, 12, 0.5, 0)
+	logo.AnchorPoint = Vector2.new(0, 0.5)
+	logo.BackgroundColor3 = Color3.fromRGB(120, 80, 255)
+	logo.BorderSizePixel = 0
+	logo.ZIndex = 3
+	logo.Parent = topbar
+	
+	local logoCorner = Instance.new("UICorner")
+	logoCorner.CornerRadius = UDim.new(0, 8)
+	logoCorner.Parent = logo
+	
+	createGradient(logo, 45)
+	
+	local logoText = Instance.new("TextLabel")
+	logoText.Size = UDim2.new(1, 0, 1, 0)
+	logoText.BackgroundTransparency = 1
+	logoText.Text = "V"
+	logoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	logoText.TextSize = 20
+	logoText.Font = Enum.Font.GothamBold
+	logoText.ZIndex = 4
+	logoText.Parent = logo
+	
+	-- Rotate logo animation
+	spawn(function()
+		while logo and logo.Parent do
+			for i = 0, 360, 2 do
+				logo.Rotation = i
+				RunService.RenderStepped:Wait()
+			end
+		end
+	end)
 	
 	-- Title
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
-	title.Size = UDim2.new(1, -50, 1, 0)
-	title.Position = UDim2.new(0, 15, 0, 0)
+	title.Size = UDim2.new(1, -140, 1, 0)
+	title.Position = UDim2.new(0, 50, 0, 0)
 	title.BackgroundTransparency = 1
 	title.Text = windowName
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.TextSize = 18
+	title.TextSize = 20
 	title.Font = Enum.Font.GothamBold
 	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.ZIndex = 3
 	title.Parent = topbar
+	
+	-- Minimize Button
+	local minimizeBtn = Instance.new("TextButton")
+	minimizeBtn.Name = "MinimizeBtn"
+	minimizeBtn.Size = UDim2.new(0, 36, 0, 36)
+	minimizeBtn.Position = UDim2.new(1, -90, 0.5, 0)
+	minimizeBtn.AnchorPoint = Vector2.new(0, 0.5)
+	minimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	minimizeBtn.BorderSizePixel = 0
+	minimizeBtn.Text = "—"
+	minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	minimizeBtn.TextSize = 18
+	minimizeBtn.Font = Enum.Font.GothamBold
+	minimizeBtn.ZIndex = 3
+	minimizeBtn.Parent = topbar
+	
+	local minimizeBtnCorner = Instance.new("UICorner")
+	minimizeBtnCorner.CornerRadius = UDim.new(0, 8)
+	minimizeBtnCorner.Parent = minimizeBtn
+	
+	local minimized = false
+	minimizeBtn.MouseButton1Click:Connect(function()
+		minimized = not minimized
+		if minimized then
+			tween(main, {Size = UDim2.new(windowSize.X.Scale, windowSize.X.Offset, 0, 50)}, 0.3)
+			minimizeBtn.Text = "+"
+		else
+			tween(main, {Size = windowSize}, 0.3)
+			minimizeBtn.Text = "—"
+		end
+	end)
+	
+	minimizeBtn.MouseEnter:Connect(function()
+		tween(minimizeBtn, {BackgroundColor3 = Color3.fromRGB(80, 120, 255)}, 0.2)
+	end)
+	
+	minimizeBtn.MouseLeave:Connect(function()
+		tween(minimizeBtn, {BackgroundColor3 = Color3.fromRGB(40, 40, 50)}, 0.2)
+	end)
 	
 	-- Close Button
 	local closeBtn = Instance.new("TextButton")
 	closeBtn.Name = "CloseBtn"
-	closeBtn.Size = UDim2.new(0, 35, 0, 35)
-	closeBtn.Position = UDim2.new(1, -40, 0.5, 0)
+	closeBtn.Size = UDim2.new(0, 36, 0, 36)
+	closeBtn.Position = UDim2.new(1, -45, 0.5, 0)
 	closeBtn.AnchorPoint = Vector2.new(0, 0.5)
-	closeBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 	closeBtn.BorderSizePixel = 0
 	closeBtn.Text = "×"
 	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	closeBtn.TextSize = 24
 	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.ZIndex = 3
 	closeBtn.Parent = topbar
 	
 	local closeBtnCorner = Instance.new("UICorner")
@@ -121,17 +282,18 @@ function Vortex:CreateWindow(config)
 	closeBtnCorner.Parent = closeBtn
 	
 	closeBtn.MouseButton1Click:Connect(function()
-		tween(main, {Size = UDim2.new(0, 0, 0, 0)}, 0.3)
-		wait(0.3)
+		tween(main, {Size = UDim2.new(0, 0, 0, 0), Rotation = 180}, 0.4)
+		tween(outerGlow, {ImageTransparency = 1}, 0.4)
+		wait(0.4)
 		gui:Destroy()
 	end)
 	
 	closeBtn.MouseEnter:Connect(function()
-		tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(200, 50, 50)}, 0.2)
+		tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(255, 80, 100)}, 0.2)
 	end)
 	
 	closeBtn.MouseLeave:Connect(function()
-		tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(35, 35, 42)}, 0.2)
+		tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(40, 40, 50)}, 0.2)
 	end)
 	
 	-- Dragging
@@ -167,22 +329,24 @@ function Vortex:CreateWindow(config)
 	-- Tab System
 	local tabContainer = Instance.new("Frame")
 	tabContainer.Name = "TabContainer"
-	tabContainer.Size = UDim2.new(0, 140, 1, -55)
-	tabContainer.Position = UDim2.new(0, 10, 0, 50)
+	tabContainer.Size = UDim2.new(0, 150, 1, -60)
+	tabContainer.Position = UDim2.new(0, 10, 0, 55)
 	tabContainer.BackgroundTransparency = 1
+	tabContainer.ZIndex = 2
 	tabContainer.Parent = main
 	
 	local tabList = Instance.new("UIListLayout")
 	tabList.SortOrder = Enum.SortOrder.LayoutOrder
-	tabList.Padding = UDim.new(0, 5)
+	tabList.Padding = UDim.new(0, 6)
 	tabList.Parent = tabContainer
 	
 	-- Content Container
 	local contentContainer = Instance.new("Frame")
 	contentContainer.Name = "ContentContainer"
-	contentContainer.Size = UDim2.new(1, -165, 1, -65)
-	contentContainer.Position = UDim2.new(0, 155, 0, 55)
+	contentContainer.Size = UDim2.new(1, -175, 1, -70)
+	contentContainer.Position = UDim2.new(0, 165, 0, 60)
 	contentContainer.BackgroundTransparency = 1
+	contentContainer.ZIndex = 2
 	contentContainer.Parent = main
 	
 	-- Window Object
@@ -199,19 +363,50 @@ function Vortex:CreateWindow(config)
 		-- Tab Button
 		local tabBtn = Instance.new("TextButton")
 		tabBtn.Name = tabName
-		tabBtn.Size = UDim2.new(1, 0, 0, 38)
-		tabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+		tabBtn.Size = UDim2.new(1, 0, 0, 42)
+		tabBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 		tabBtn.BorderSizePixel = 0
-		tabBtn.Text = tabName
+		tabBtn.Text = ""
 		tabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
-		tabBtn.TextSize = 14
-		tabBtn.Font = Enum.Font.Gotham
+		tabBtn.TextSize = 15
+		tabBtn.Font = Enum.Font.GothamBold
 		tabBtn.ClipsDescendants = true
+		tabBtn.ZIndex = 2
 		tabBtn.Parent = tabContainer
 		
 		local tabBtnCorner = Instance.new("UICorner")
-		tabBtnCorner.CornerRadius = UDim.new(0, 8)
+		tabBtnCorner.CornerRadius = UDim.new(0, 10)
 		tabBtnCorner.Parent = tabBtn
+		
+		local tabBtnStroke = Instance.new("UIStroke")
+		tabBtnStroke.Color = Color3.fromRGB(60, 60, 80)
+		tabBtnStroke.Thickness = 1
+		tabBtnStroke.Transparency = 0.5
+		tabBtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		tabBtnStroke.Parent = tabBtn
+		
+		local tabIcon = Instance.new("TextLabel")
+		tabIcon.Size = UDim2.new(0, 30, 1, 0)
+		tabIcon.Position = UDim2.new(0, 5, 0, 0)
+		tabIcon.BackgroundTransparency = 1
+		tabIcon.Text = "●"
+		tabIcon.TextColor3 = Color3.fromRGB(120, 80, 255)
+		tabIcon.TextSize = 20
+		tabIcon.Font = Enum.Font.GothamBold
+		tabIcon.ZIndex = 3
+		tabIcon.Parent = tabBtn
+		
+		local tabLabel = Instance.new("TextLabel")
+		tabLabel.Size = UDim2.new(1, -40, 1, 0)
+		tabLabel.Position = UDim2.new(0, 35, 0, 0)
+		tabLabel.BackgroundTransparency = 1
+		tabLabel.Text = tabName
+		tabLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+		tabLabel.TextSize = 15
+		tabLabel.Font = Enum.Font.GothamBold
+		tabLabel.TextXAlignment = Enum.TextXAlignment.Left
+		tabLabel.ZIndex = 3
+		tabLabel.Parent = tabBtn
 		
 		-- Tab Content
 		local tabContent = Instance.new("ScrollingFrame")
@@ -219,19 +414,20 @@ function Vortex:CreateWindow(config)
 		tabContent.Size = UDim2.new(1, 0, 1, 0)
 		tabContent.BackgroundTransparency = 1
 		tabContent.BorderSizePixel = 0
-		tabContent.ScrollBarThickness = 4
-		tabContent.ScrollBarImageColor3 = Color3.fromRGB(100, 60, 200)
+		tabContent.ScrollBarThickness = 6
+		tabContent.ScrollBarImageColor3 = Color3.fromRGB(120, 80, 255)
 		tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
 		tabContent.Visible = false
+		tabContent.ZIndex = 2
 		tabContent.Parent = contentContainer
 		
 		local contentList = Instance.new("UIListLayout")
 		contentList.SortOrder = Enum.SortOrder.LayoutOrder
-		contentList.Padding = UDim.new(0, 8)
+		contentList.Padding = UDim.new(0, 10)
 		contentList.Parent = tabContent
 		
 		contentList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			tabContent.CanvasSize = UDim2.new(0, 0, 0, contentList.AbsoluteContentSize.Y + 10)
+			tabContent.CanvasSize = UDim2.new(0, 0, 0, contentList.AbsoluteContentSize.Y + 15)
 		end)
 		
 		Tab.Content = tabContent
@@ -242,16 +438,36 @@ function Vortex:CreateWindow(config)
 			
 			for _, tab in pairs(Window.Tabs) do
 				tab.Content.Visible = false
-				tween(tab.Button, {BackgroundColor3 = Color3.fromRGB(30, 30, 38), TextColor3 = Color3.fromRGB(180, 180, 180)}, 0.2)
+				tween(tab.Button, {BackgroundColor3 = Color3.fromRGB(25, 25, 35)}, 0.2)
+				local otherLabel = tab.Button:FindFirstChild("TextLabel")
+				local otherIcon = tab.Button:FindFirstChild("TextLabel")
+				if otherLabel then
+					tween(otherLabel, {TextColor3 = Color3.fromRGB(180, 180, 180)}, 0.2)
+				end
 			end
 			
 			tabContent.Visible = true
-			tween(tabBtn, {BackgroundColor3 = Color3.fromRGB(100, 60, 200), TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.2)
+			tween(tabBtn, {BackgroundColor3 = Color3.fromRGB(40, 35, 60)}, 0.2)
+			tween(tabLabel, {TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.2)
+			tween(tabIcon, {TextColor3 = Color3.fromRGB(180, 120, 255)}, 0.2)
 			Window.CurrentTab = Tab
+		end)
+		
+		tabBtn.MouseEnter:Connect(function()
+			if Window.CurrentTab ~= Tab then
+				tween(tabBtn, {BackgroundColor3 = Color3.fromRGB(30, 30, 45)}, 0.2)
+			end
+		end)
+		
+		tabBtn.MouseLeave:Connect(function()
+			if Window.CurrentTab ~= Tab then
+				tween(tabBtn, {BackgroundColor3 = Color3.fromRGB(25, 25, 35)}, 0.2)
+			end
 		end)
 		
 		-- Auto-select first tab
 		if #Window.Tabs == 0 then
+			wait(0.1)
 			tabBtn.MouseButton1Click:Fire()
 		end
 		
@@ -265,31 +481,70 @@ function Vortex:CreateWindow(config)
 			
 			local btn = Instance.new("TextButton")
 			btn.Name = "Button"
-			btn.Size = UDim2.new(1, -10, 0, 40)
-			btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+			btn.Size = UDim2.new(1, -10, 0, 45)
+			btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 			btn.BorderSizePixel = 0
-			btn.Text = btnText
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.TextSize = 14
-			btn.Font = Enum.Font.Gotham
+			btn.Text = ""
 			btn.ClipsDescendants = true
+			btn.ZIndex = 2
 			btn.Parent = tabContent
 			
 			local btnCorner = Instance.new("UICorner")
-			btnCorner.CornerRadius = UDim.new(0, 8)
+			btnCorner.CornerRadius = UDim.new(0, 10)
 			btnCorner.Parent = btn
+			
+			local btnStroke = Instance.new("UIStroke")
+			btnStroke.Color = Color3.fromRGB(80, 60, 150)
+			btnStroke.Thickness = 1.5
+			btnStroke.Transparency = 0.7
+			btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			btnStroke.Parent = btn
+			
+			local btnGradient = createGradient(btn, 45)
+			btnGradient.Transparency = NumberSequence.new{
+				NumberSequenceKeypoint.new(0, 0.95),
+				NumberSequenceKeypoint.new(1, 0.85)
+			}
+			
+			local btnLabel = Instance.new("TextLabel")
+			btnLabel.Size = UDim2.new(1, -20, 1, 0)
+			btnLabel.Position = UDim2.new(0, 10, 0, 0)
+			btnLabel.BackgroundTransparency = 1
+			btnLabel.Text = btnText
+			btnLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btnLabel.TextSize = 15
+			btnLabel.Font = Enum.Font.GothamBold
+			btnLabel.TextXAlignment = Enum.TextXAlignment.Left
+			btnLabel.ZIndex = 3
+			btnLabel.Parent = btn
+			
+			local btnArrow = Instance.new("TextLabel")
+			btnArrow.Size = UDim2.new(0, 30, 1, 0)
+			btnArrow.Position = UDim2.new(1, -35, 0, 0)
+			btnArrow.BackgroundTransparency = 1
+			btnArrow.Text = "→"
+			btnArrow.TextColor3 = Color3.fromRGB(150, 120, 255)
+			btnArrow.TextSize = 18
+			btnArrow.Font = Enum.Font.GothamBold
+			btnArrow.ZIndex = 3
+			btnArrow.Parent = btn
 			
 			btn.MouseButton1Click:Connect(function()
 				ripple(btn, btn.AbsoluteSize.X/2, btn.AbsoluteSize.Y/2)
+				tween(btnArrow, {Position = UDim2.new(1, -30, 0, 0)}, 0.2)
+				wait(0.1)
+				tween(btnArrow, {Position = UDim2.new(1, -35, 0, 0)}, 0.2)
 				callback()
 			end)
 			
 			btn.MouseEnter:Connect(function()
-				tween(btn, {BackgroundColor3 = Color3.fromRGB(45, 45, 55)}, 0.2)
+				tween(btn, {BackgroundColor3 = Color3.fromRGB(40, 35, 55)}, 0.2)
+				tween(btnStroke, {Transparency = 0.3}, 0.2)
 			end)
 			
 			btn.MouseLeave:Connect(function()
-				tween(btn, {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}, 0.2)
+				tween(btn, {BackgroundColor3 = Color3.fromRGB(30, 30, 40)}, 0.2)
+				tween(btnStroke, {Transparency = 0.7}, 0.2)
 			end)
 		end
 		
@@ -301,60 +556,93 @@ function Vortex:CreateWindow(config)
 			
 			local toggleFrame = Instance.new("Frame")
 			toggleFrame.Name = "Toggle"
-			toggleFrame.Size = UDim2.new(1, -10, 0, 40)
-			toggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+			toggleFrame.Size = UDim2.new(1, -10, 0, 45)
+			toggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 			toggleFrame.BorderSizePixel = 0
+			toggleFrame.ZIndex = 2
 			toggleFrame.Parent = tabContent
 			
 			local toggleCorner = Instance.new("UICorner")
-			toggleCorner.CornerRadius = UDim.new(0, 8)
+			toggleCorner.CornerRadius = UDim.new(0, 10)
 			toggleCorner.Parent = toggleFrame
 			
+			local toggleStroke = Instance.new("UIStroke")
+			toggleStroke.Color = Color3.fromRGB(80, 60, 150)
+			toggleStroke.Thickness = 1.5
+			toggleStroke.Transparency = 0.7
+			toggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			toggleStroke.Parent = toggleFrame
+			
 			local label = Instance.new("TextLabel")
-			label.Size = UDim2.new(1, -50, 1, 0)
-			label.Position = UDim2.new(0, 10, 0, 0)
+			label.Size = UDim2.new(1, -65, 1, 0)
+			label.Position = UDim2.new(0, 12, 0, 0)
 			label.BackgroundTransparency = 1
 			label.Text = toggleText
 			label.TextColor3 = Color3.fromRGB(255, 255, 255)
-			label.TextSize = 14
-			label.Font = Enum.Font.Gotham
+			label.TextSize = 15
+			label.Font = Enum.Font.GothamBold
 			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.ZIndex = 3
 			label.Parent = toggleFrame
 			
 			local toggleBtn = Instance.new("TextButton")
-			toggleBtn.Size = UDim2.new(0, 40, 0, 20)
-			toggleBtn.Position = UDim2.new(1, -45, 0.5, 0)
+			toggleBtn.Size = UDim2.new(0, 48, 0, 24)
+			toggleBtn.Position = UDim2.new(1, -55, 0.5, 0)
 			toggleBtn.AnchorPoint = Vector2.new(0, 0.5)
-			toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 			toggleBtn.BorderSizePixel = 0
 			toggleBtn.Text = ""
+			toggleBtn.ZIndex = 3
 			toggleBtn.Parent = toggleFrame
 			
 			local toggleBtnCorner = Instance.new("UICorner")
 			toggleBtnCorner.CornerRadius = UDim.new(1, 0)
 			toggleBtnCorner.Parent = toggleBtn
 			
+			local toggleBtnStroke = Instance.new("UIStroke")
+			toggleBtnStroke.Color = Color3.fromRGB(60, 60, 80)
+			toggleBtnStroke.Thickness = 1.5
+			toggleBtnStroke.Transparency = 0.5
+			toggleBtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			toggleBtnStroke.Parent = toggleBtn
+			
 			local circle = Instance.new("Frame")
-			circle.Size = UDim2.new(0, 16, 0, 16)
-			circle.Position = UDim2.new(0, 2, 0.5, 0)
+			circle.Size = UDim2.new(0, 18, 0, 18)
+			circle.Position = UDim2.new(0, 3, 0.5, 0)
 			circle.AnchorPoint = Vector2.new(0, 0.5)
-			circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			circle.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
 			circle.BorderSizePixel = 0
+			circle.ZIndex = 4
 			circle.Parent = toggleBtn
 			
 			local circleCorner = Instance.new("UICorner")
 			circleCorner.CornerRadius = UDim.new(1, 0)
 			circleCorner.Parent = circle
 			
+			local circleShadow = Instance.new("ImageLabel")
+			circleShadow.Size = UDim2.new(1, 10, 1, 10)
+			circleShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+			circleShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+			circleShadow.BackgroundTransparency = 1
+			circleShadow.Image = "rbxassetid://5554236805"
+			circleShadow.ImageColor3 = Color3.fromRGB(120, 80, 255)
+			circleShadow.ImageTransparency = 0.8
+			circleShadow.ZIndex = 3
+			circleShadow.Parent = circle
+			
 			local toggled = defaultState
 			
 			local function updateToggle()
 				if toggled then
-					tween(toggleBtn, {BackgroundColor3 = Color3.fromRGB(100, 60, 200)}, 0.2)
-					tween(circle, {Position = UDim2.new(1, -2, 0.5, 0)}, 0.2)
+					tween(toggleBtn, {BackgroundColor3 = Color3.fromRGB(120, 80, 255)}, 0.3)
+					tween(circle, {Position = UDim2.new(1, -3, 0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}, 0.3)
+					tween(toggleBtnStroke, {Color = Color3.fromRGB(150, 120, 255), Transparency = 0.2}, 0.3)
+					tween(circleShadow, {ImageTransparency = 0.4}, 0.3)
 				else
-					tween(toggleBtn, {BackgroundColor3 = Color3.fromRGB(50, 50, 60)}, 0.2)
-					tween(circle, {Position = UDim2.new(0, 2, 0.5, 0)}, 0.2)
+					tween(toggleBtn, {BackgroundColor3 = Color3.fromRGB(40, 40, 50)}, 0.3)
+					tween(circle, {Position = UDim2.new(0, 3, 0.5, 0), BackgroundColor3 = Color3.fromRGB(220, 220, 220)}, 0.3)
+					tween(toggleBtnStroke, {Color = Color3.fromRGB(60, 60, 80), Transparency = 0.5}, 0.3)
+					tween(circleShadow, {ImageTransparency = 0.8}, 0.3)
 				end
 				callback(toggled)
 			end
@@ -377,42 +665,53 @@ function Vortex:CreateWindow(config)
 			
 			local sliderFrame = Instance.new("Frame")
 			sliderFrame.Name = "Slider"
-			sliderFrame.Size = UDim2.new(1, -10, 0, 50)
-			sliderFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+			sliderFrame.Size = UDim2.new(1, -10, 0, 60)
+			sliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 			sliderFrame.BorderSizePixel = 0
+			sliderFrame.ZIndex = 2
 			sliderFrame.Parent = tabContent
 			
 			local sliderCorner = Instance.new("UICorner")
-			sliderCorner.CornerRadius = UDim.new(0, 8)
+			sliderCorner.CornerRadius = UDim.new(0, 10)
 			sliderCorner.Parent = sliderFrame
 			
+			local sliderStroke = Instance.new("UIStroke")
+			sliderStroke.Color = Color3.fromRGB(80, 60, 150)
+			sliderStroke.Thickness = 1.5
+			sliderStroke.Transparency = 0.7
+			sliderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			sliderStroke.Parent = sliderFrame
+			
 			local label = Instance.new("TextLabel")
-			label.Size = UDim2.new(0.7, 0, 0, 20)
-			label.Position = UDim2.new(0, 10, 0, 5)
+			label.Size = UDim2.new(0.7, 0, 0, 25)
+			label.Position = UDim2.new(0, 12, 0, 8)
 			label.BackgroundTransparency = 1
 			label.Text = sliderText
 			label.TextColor3 = Color3.fromRGB(255, 255, 255)
-			label.TextSize = 14
-			label.Font = Enum.Font.Gotham
+			label.TextSize = 15
+			label.Font = Enum.Font.GothamBold
 			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.ZIndex = 3
 			label.Parent = sliderFrame
 			
 			local valueLabel = Instance.new("TextLabel")
-			valueLabel.Size = UDim2.new(0.3, -10, 0, 20)
-			valueLabel.Position = UDim2.new(0.7, 0, 0, 5)
+			valueLabel.Size = UDim2.new(0.3, -12, 0, 25)
+			valueLabel.Position = UDim2.new(0.7, 0, 0, 8)
 			valueLabel.BackgroundTransparency = 1
 			valueLabel.Text = tostring(default)
-			valueLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-			valueLabel.TextSize = 14
-			valueLabel.Font = Enum.Font.Gotham
+			valueLabel.TextColor3 = Color3.fromRGB(150, 120, 255)
+			valueLabel.TextSize = 16
+			valueLabel.Font = Enum.Font.GothamBold
 			valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+			valueLabel.ZIndex = 3
 			valueLabel.Parent = sliderFrame
 			
 			local sliderBack = Instance.new("Frame")
-			sliderBack.Size = UDim2.new(1, -20, 0, 6)
-			sliderBack.Position = UDim2.new(0, 10, 1, -15)
-			sliderBack.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			sliderBack.Size = UDim2.new(1, -24, 0, 8)
+			sliderBack.Position = UDim2.new(0, 12, 1, -20)
+			sliderBack.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 			sliderBack.BorderSizePixel = 0
+			sliderBack.ZIndex = 3
 			sliderBack.Parent = sliderFrame
 			
 			local sliderBackCorner = Instance.new("UICorner")
@@ -421,25 +720,56 @@ function Vortex:CreateWindow(config)
 			
 			local sliderFill = Instance.new("Frame")
 			sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-			sliderFill.BackgroundColor3 = Color3.fromRGB(100, 60, 200)
+			sliderFill.BackgroundColor3 = Color3.fromRGB(120, 80, 255)
 			sliderFill.BorderSizePixel = 0
+			sliderFill.ZIndex = 4
 			sliderFill.Parent = sliderBack
 			
 			local sliderFillCorner = Instance.new("UICorner")
 			sliderFillCorner.CornerRadius = UDim.new(1, 0)
 			sliderFillCorner.Parent = sliderFill
 			
+			local fillGradient = createGradient(sliderFill, 90)
+			
+			local thumb = Instance.new("Frame")
+			thumb.Size = UDim2.new(0, 18, 0, 18)
+			thumb.Position = UDim2.new((default - min) / (max - min), 0, 0.5, 0)
+			thumb.AnchorPoint = Vector2.new(0.5, 0.5)
+			thumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			thumb.BorderSizePixel = 0
+			thumb.ZIndex = 5
+			thumb.Parent = sliderBack
+			
+			local thumbCorner = Instance.new("UICorner")
+			thumbCorner.CornerRadius = UDim.new(1, 0)
+			thumbCorner.Parent = thumb
+			
+			local thumbGlow = Instance.new("ImageLabel")
+			thumbGlow.Size = UDim2.new(1, 12, 1, 12)
+			thumbGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
+			thumbGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+			thumbGlow.BackgroundTransparency = 1
+			thumbGlow.Image = "rbxassetid://5554236805"
+			thumbGlow.ImageColor3 = Color3.fromRGB(150, 120, 255)
+			thumbGlow.ImageTransparency = 0.5
+			thumbGlow.ZIndex = 4
+			thumbGlow.Parent = thumb
+			
 			local draggingSlider = false
 			
 			sliderBack.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 then
 					draggingSlider = true
+					tween(thumb, {Size = UDim2.new(0, 22, 0, 22)}, 0.2)
+					tween(thumbGlow, {ImageTransparency = 0.2}, 0.2)
 				end
 			end)
 			
 			UserInputService.InputEnded:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 then
 					draggingSlider = false
+					tween(thumb, {Size = UDim2.new(0, 18, 0, 18)}, 0.2)
+					tween(thumbGlow, {ImageTransparency = 0.5}, 0.2)
 				end
 			end)
 			
@@ -449,6 +779,7 @@ function Vortex:CreateWindow(config)
 					local value = math.floor(min + (max - min) * pos)
 					
 					sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+					thumb.Position = UDim2.new(pos, 0, 0.5, 0)
 					valueLabel.Text = tostring(value)
 					callback(value)
 				end
@@ -456,25 +787,47 @@ function Vortex:CreateWindow(config)
 		end
 		
 		function Tab:CreateLabel(text)
+			local labelFrame = Instance.new("Frame")
+			labelFrame.Name = "Label"
+			labelFrame.Size = UDim2.new(1, -10, 0, 35)
+			labelFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+			labelFrame.BorderSizePixel = 0
+			labelFrame.ZIndex = 2
+			labelFrame.Parent = tabContent
+			
+			local labelCorner = Instance.new("UICorner")
+			labelCorner.CornerRadius = UDim.new(0, 10)
+			labelCorner.Parent = labelFrame
+			
+			local labelStroke = Instance.new("UIStroke")
+			labelStroke.Color = Color3.fromRGB(80, 60, 150)
+			labelStroke.Thickness = 1.5
+			labelStroke.Transparency = 0.8
+			labelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			labelStroke.Parent = labelFrame
+			
 			local label = Instance.new("TextLabel")
-			label.Name = "Label"
-			label.Size = UDim2.new(1, -10, 0, 30)
+			label.Size = UDim2.new(1, -20, 1, 0)
+			label.Position = UDim2.new(0, 10, 0, 0)
 			label.BackgroundTransparency = 1
 			label.Text = text or "Label"
-			label.TextColor3 = Color3.fromRGB(200, 200, 200)
+			label.TextColor3 = Color3.fromRGB(200, 200, 220)
 			label.TextSize = 14
 			label.Font = Enum.Font.Gotham
 			label.TextXAlignment = Enum.TextXAlignment.Left
 			label.TextWrapped = true
-			label.Parent = tabContent
+			label.ZIndex = 3
+			label.Parent = labelFrame
 		end
 		
 		return Tab
 	end
 	
-	-- Spawn animation
+	-- Spawn animation with rotation
 	main.Size = UDim2.new(0, 0, 0, 0)
-	tween(main, {Size = windowSize}, 0.4)
+	main.Rotation = -180
+	tween(main, {Size = windowSize, Rotation = 0}, 0.5)
+	tween(outerGlow, {ImageTransparency = 0.5}, 0.5)
 	
 	return Window
 end
